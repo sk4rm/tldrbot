@@ -1,8 +1,12 @@
 import os
+import logging
 import requests
 
 import discord
 from discord import app_commands
+
+
+log_handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
 
 
 # https://github.com/Rapptz/discord.py/blob/master/examples/app_commands/basic.py
@@ -33,10 +37,15 @@ async def on_ready():
 
 
 @client.tree.command()
-async def tldr(interaction: discord.Interaction):
+@app_commands.describe(
+    limit="The number of messages to summarize; defaults to your last sent message."
+)
+async def tldr(interaction: discord.Interaction, limit: int | None = None):
     """Summarize all messages in this channel since your last message."""
 
+    #
     # Fetch messages
+    #
 
     channel = interaction.channel
 
@@ -44,41 +53,51 @@ async def tldr(interaction: discord.Interaction):
         await interaction.response.send_message("Unsupported channel type")
         return
 
-    history = channel.history(limit=None)
+    history = channel.history(limit=limit)
     to_summarize: list[discord.Message] = []
 
     async for message in history:
-        if message.author.id == interaction.user.id:
+        # Stop on user's last message if not limit is supplied.
+        if message.author.id == interaction.user.id and limit is None:
             break
         to_summarize.insert(0, message)
 
+    #
     # Initial confirmation
+    #
 
     await interaction.response.send_message(
         f"Generating TL;DR for {len(to_summarize)} messages..."
     )
 
+    #
     # Prepare AI prompt
+    #
 
-    prompt = "Summarize the following message history in under "
-    prompt += "2000 characters long. Be concise in your summary. "
-    prompt += "Begin directly with your summary.\nMessage history:\n"
+    prompt = (
+        "Summarize the following message history in under 2000 characters long. Begin"
+        " directly with your summary.\nMessage history:\n"
+    )
 
     for message in to_summarize:
-        author_name = message.author.global_name
+        author_name = message.author.display_name
         content = message.clean_content
-        prompt += f"{author_name}: {content}\n"
+        prompt += f'User named "{author_name}": {content}\n'
 
-    prompt += "Summary: "
+    prompt += "\nSummary: "
 
+    #
     # Send request to ollama
+    #
 
     host = os.environ["OLLAMA_HOST"]
     port = os.environ["OLLAMA_PORT"]
     endpoint = f"http://{host}:{port}/api/generate"
 
+    model = os.environ["OLLAMA_MODEL"]
+
     data: dict[str, str | bool] = {
-        "model": "llama3.2",
+        "model": model,
         "prompt": prompt,
         "stream": False,
     }
@@ -87,9 +106,11 @@ async def tldr(interaction: discord.Interaction):
     response_data = response.json()
     summary = response_data["response"]
 
+    #
     # Update message with TL;DR
+    #
 
     await interaction.edit_original_response(content=summary[:2000])
 
 
-client.run(os.environ["TOKEN"])
+client.run(os.environ["TOKEN"], log_handler=log_handler)
