@@ -16,13 +16,12 @@ Create a `.env` file for your secrets. Venv will read from it once when you acti
 
 ```pwsh
 # Discord bot config
-TOKEN= # required bot token
-DEV_GUILD_ID=000000000000000000
+TOKEN=                          # required bot token
+DEV_GUILD_ID=000000000000000000 # optional dev guild
 
 # Ollama config
-OLLAMA_HOST=127.0.0.1
-OLLAMA_PORT=11434
-OLLAMA_MODEL=llama3.1:8b
+OLLAMA_HOST=127.0.0.1:11434
+OLLAMA_MODEL=llama3.1
 ```
 
 Start the ollama server.

@@ -75,8 +75,8 @@ async def tldr(interaction: discord.Interaction, limit: int | None = None):
     #
 
     prompt = (
-        "Summarize the following message history in under 2000 characters long. Begin"
-        " directly with your summary.\nMessage history:\n"
+        "Summarize the following message history. Begin directly with your"
+        " summary.\nMessage history:\n"
     )
 
     for message in to_summarize:
@@ -91,8 +91,7 @@ async def tldr(interaction: discord.Interaction, limit: int | None = None):
     #
 
     host = os.environ["OLLAMA_HOST"]
-    port = os.environ["OLLAMA_PORT"]
-    endpoint = f"http://{host}:{port}/api/generate"
+    endpoint = f"http://{host}/api/generate"
 
     model = os.environ["OLLAMA_MODEL"]
 
