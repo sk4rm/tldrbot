@@ -2,7 +2,6 @@ import os
 
 import discord
 from discord import app_commands
-from discord.utils import find
 
 
 # https://github.com/Rapptz/discord.py/blob/master/examples/app_commands/basic.py
@@ -13,10 +12,14 @@ class Client(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        # This copies the global commands over to the my own test server only.
-        MY_GUILD = discord.Object(id=os.environ["DEV_GUILD_ID"])
-        self.tree.copy_global_to(guild=MY_GUILD)
-        await self.tree.sync(guild=MY_GUILD)
+        if dev_guild_id := os.environ.get("DEV_GUILD_ID"):
+            dev_guild = discord.Object(id=dev_guild_id)
+
+            # This copies the global commands over the test servers only
+            self.tree.copy_global_to(guild=dev_guild)
+            await self.tree.sync(guild=dev_guild)
+        else:
+            await self.tree.sync()
 
 
 intents = discord.Intents.default()
@@ -35,25 +38,25 @@ async def tldr(interaction: discord.Interaction):
     # Fetch messages
 
     channel = interaction.channel
-    user_id = interaction.user.id
 
     if not isinstance(channel, discord.TextChannel):
         await interaction.response.send_message("Unsupported channel type")
         return
 
-    messages = channel.history(limit=None)
-    last_message = await find(lambda m: m.author.id == user_id, messages)
+    history = channel.history(limit=None)
+    to_summarize: list[discord.Message] = []
 
-    if last_message is None:
-        await interaction.response.send_message("No message found")
-        return
+    async for message in history:
+        if message.author.id == interaction.user.id:
+            break
+        to_summarize.insert(0, message)
 
     # AI Prompt
 
     # Reply
 
     await interaction.response.send_message(
-        f"Your last message was:\n>>> {last_message.content}"
+        f"Generating TL;DR for {len(to_summarize)} messages..."
     )
 
 
