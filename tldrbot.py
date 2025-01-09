@@ -1,4 +1,5 @@
 import os
+import requests
 
 import discord
 from discord import app_commands
@@ -51,13 +52,44 @@ async def tldr(interaction: discord.Interaction):
             break
         to_summarize.insert(0, message)
 
-    # AI Prompt
-
-    # Reply
+    # Initial confirmation
 
     await interaction.response.send_message(
         f"Generating TL;DR for {len(to_summarize)} messages..."
     )
+
+    # Prepare AI prompt
+
+    prompt = "Summarize the following message history in under "
+    prompt += "2000 characters long. Be concise in your summary. "
+    prompt += "Begin directly with your summary.\nMessage history:\n"
+
+    for message in to_summarize:
+        author_name = message.author.global_name
+        content = message.clean_content
+        prompt += f"{author_name}: {content}\n"
+
+    prompt += "Summary: "
+
+    # Send request to ollama
+
+    host = os.environ["OLLAMA_HOST"]
+    port = os.environ["OLLAMA_PORT"]
+    endpoint = f"http://{host}:{port}/api/generate"
+
+    data: dict[str, str | bool] = {
+        "model": "llama3.2",
+        "prompt": prompt,
+        "stream": False,
+    }
+
+    response = requests.post(endpoint, json=data)
+    response_data = response.json()
+    summary = response_data["response"]
+
+    # Update message with TL;DR
+
+    await interaction.edit_original_response(content=summary[:2000])
 
 
 client.run(os.environ["TOKEN"])
