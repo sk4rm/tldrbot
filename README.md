@@ -50,8 +50,6 @@ Start the bot.
 python tldrbot.py
 ```
 
-The bot will pull and use 
-
 ## Docker
 
 Build and run the bot.
