@@ -17,7 +17,7 @@ class Client(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        if dev_guild_id := os.environ.get("DEV_GUILD_ID"):
+        if dev_guild_id := os.environ.get("GUILD_ID"):
             dev_guild = discord.Object(id=dev_guild_id)
 
             # This copies the global commands over the test servers only
@@ -90,10 +90,10 @@ async def tldr(interaction: discord.Interaction, limit: int | None = None):
     # Send request to ollama
     #
 
-    host = os.environ["OLLAMA_HOST"]
-    endpoint = f"http://{host}/api/generate"
-
     model = os.environ["OLLAMA_MODEL"]
+
+    host = os.environ.get("OLLAMA_HOST", "ollama:11434")
+    endpoint = f"http://{host}/api/generate"
 
     data: dict[str, str | bool] = {
         "model": model,
@@ -103,7 +103,13 @@ async def tldr(interaction: discord.Interaction, limit: int | None = None):
 
     response = requests.post(endpoint, json=data)
     response_data = response.json()
-    summary = response_data["response"]
+    summary = response_data.get("response")
+
+    if not summary:
+        await interaction.edit_original_response(
+            content="Unable to generate summary: internal server error"
+        )
+        return
 
     #
     # Update message with TL;DR
@@ -112,4 +118,19 @@ async def tldr(interaction: discord.Interaction, limit: int | None = None):
     await interaction.edit_original_response(content=summary[:2000])
 
 
-client.run(os.environ["TOKEN"], log_handler=log_handler)
+# Wait for ollama to pull model
+host = os.environ.get("OLLAMA_HOST", "ollama:11434")
+
+pull_response = requests.post(
+    f"http://{host}/api/pull",
+    json={
+        "model": os.environ["OLLAMA_MODEL"],
+        "stream": False,
+    },
+)
+
+pull_response_data = pull_response.json()
+pull_status = pull_response_data.get("status")
+
+if pull_status == "success":
+    client.run(os.environ["TOKEN"], log_handler=log_handler, log_level=logging.DEBUG)

@@ -1,0 +1,18 @@
+services:
+  server:
+    build:
+      context: .
+    ports:
+      - 8000:8000
+    depends_on:
+      - ollama
+    environment:
+      TOKEN: "<bot token>"
+      GUILD_ID: "<your discord server id>"
+      OLLAMA_MODEL: "llama3.1" # Choose your model here
+      # OLLAMA_HOST: "ollama:11434"
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - 11434:11434
